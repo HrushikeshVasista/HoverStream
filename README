@@ -2,3 +2,14 @@ npm init -y
 npm install --save-dev @types/node
 docker-compose up -d #starts Hoverfly + proxy controller
 curl -X POST http://localhost:3000/v1/chat/completions -d "{\"url\":\"https://jsonplaceholder.typicode.com/posts/1\"}" #POST request to the proxy controller with data = actual endpoint
+
+Aliter:
+If not using Docker then start the proxy controller and hoverfly separately:
+start hoverfly by refering to https://docs.hoverfly.io/en/latest/pages/introduction/gettingstarted.html
+start the proxy controller: node Myserver.js (localhost:3000)
+
+
+curl -X POST http://localhost:3000/v1/chat/completions -d "{\"url\":\"https://api.openai.com/v1/chat/completions\",\"model\": \"gpt-3.5-turbo\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello!\"}]}"
+
+This project includes third-party open source software.
+See THIRD_PARTY_LICENSES/attribution.txt for license details.
