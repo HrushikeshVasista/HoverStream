@@ -7,6 +7,8 @@
  * @version     1.0.0
  */
 const http = require('http');
+
+const net = require('net');
 //const https = require('https');
 const { URL } = require('url');
 
@@ -16,7 +18,9 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 const { HttpProxyAgent } = require('http-proxy-agent');
 
 // Create a proxy controller to a proxy (i.e. Hoverfly)
-const server = http.createServer((req, res) => {
+const server = http.createServer();
+
+server.on('request', (req, res) => {
   const pathname = req.url;
 
   // Admin API passthrough
@@ -45,70 +49,108 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Chat completions proxy endpoint
-  if (pathname === '/v1/chat/completions' && req.method === 'POST') {
+  if (req.url === '/capture') {
     let body = '';
-    req.on('data', chunk => (body += chunk));
+
+    req.on('data', chunk => body += chunk);
     req.on('end', () => {
-      let targetUrl;
-      try {
-        //proxy controller gets the intended target endpoint from client
-        const parsedBody = JSON.parse(body); // -d {url: <target>}
-        targetUrl = parsedBody.url;
-        if (!targetUrl) throw new Error('Missing "url"');
-      } catch (err) {
+      const targetUrl = req.headers['x-target-url'];
+      if (!targetUrl) {
         res.writeHead(400);
-        return res.end('Invalid JSON body or missing "url" field');
+        return res.end('Missing x-target-url header');
       }
 
-      const urlObj = new URL(targetUrl);
-      const protocol = urlObj.protocol;
+      const parsedUrl = new URL(targetUrl);
+      const { client, agent } = getProxyDetails(targetUrl);
+
+      const options = {
+        protocol: parsedUrl.protocol,
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: req.method, // Use the original method (GET, POST, PUT, etc.)
+        headers: req.headers,
+        agent: agent
+      };
+
+      const proxyReq = (parsedUrl.protocol === 'https:' ? https : http).request(options, proxyRes => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(res);
+      });
+
+      proxyReq.on('error', err => {
+        console.error('Proxy request error:', err.message);
+        res.writeHead(500);
+        res.end('Proxy request failed');
+      });
+
+      if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+        proxyReq.write(body);
+      }
+
+      proxyReq.end();
+    });
+  }
+
+  // For any endpoint
+  if (pathname.match(/^(\/[\w\-\.]+){1,}/)) {
+
+    let body = '';
+    //req.on('data', chunk => (body += chunk));
+    req.on('end', () => {
+
+      // try {
+      //   //proxy controller gets the intended target endpoint from client
+      //   const parsedBody = JSON.parse(body); // -d {url: <target>}
+      //   targetUrl = parsedBody.url;
+      //   if (!targetUrl) throw new Error('Missing "url"');
+      // } catch (err) {
+      //   res.writeHead(400);
+      //   return res.end('Invalid JSON body or missing "url" field');
+      // }
+
+      const hoverflyBaseUrl = 'http://localhost:8500';
+      const parsedUrl = new URL(pathname, hoverflyBaseUrl);
+      const protocol = parsedUrl.protocol;
       const isHttps = protocol.includes('https');
 
-      function getProxyDetails() {
-        const proxy = 'http://hoverfly:8500'; // for debugging: localhost:8500        
-        return isHttps
-          ? { agent: new HttpsProxyAgent(proxy), client: require('https') }
-          : { agent: new HttpProxyAgent(proxy), client: require('http') };
-      }
+      //const parsedUrl = new URL(targetUrl);
+      const { agent, client } = getProxyDetails(hoverflyBaseUrl);
 
-      const { agent, client } = getProxyDetails();
+      const options = {
+        protocol: parsedUrl.protocol,
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: req.method, // Use the original method (GET, POST, PUT, etc.)
+        headers: req.headers,
+        agent: agent
+      };
 
-      const proxyReq = client.request(new URL(targetUrl),
-        {
-          method: 'GET',
-          agent          
-        }, proxyRes => {
-          let simResponse = '';
-          proxyRes.on('data', chunk => {
-            simResponse += chunk; console.log('Got a chunk!', process.pid)});
-          proxyRes.on('end', () => {
-            console.log('Last chunk received', process.pid);
-            const chunks = simResponse.match(/.{1,4}/g) || [];
-            res.writeHead(200, {
-              'Content-Type': 'text/plain',
-              'Transfer-Encoding': 'chunked',
-              'Cache-Control': 'no-cache'
-            });
-            let i = 0;
-            const interval = setInterval(() => {
-              if (i < chunks.length) {
-                res.write(chunks[i]);
-                i++;
-              } else {
-                clearInterval(interval);
-                res.end();
-              }
-            }, 300);
-          });
-          proxyRes.on('error', () => {
-            console.log('Something errored when respsonding');
-          });
+      // Send the request to Hoverfly, get the response and stream it back the client
+      const hoverflyReq = client.request(options);
+      hoverflyReq.on('response', (proxyRes) => {
+        let simulatedResponse = '';
+        proxyRes.on('data', chunk => {
+          simulatedResponse += chunk;
         });
+        proxyRes.on('end', () => {
+          streamResponseBack2Client(res, simulatedResponse);
+        });
+        proxyRes.on('error', () => {
+          console.error('Error receiving response from Hoverfly');
+        });
+      });
 
-        proxyReq.end();
+      hoverflyReq.on('error', (err) => {
+        console.error('Request to Hoverfly failed: ', err.message);
+        res.writeHead(502);
+        res.end('Bad gateway');
+      });
+
+      req.pipe(hoverflyReq);
+      
     });
-
 
     req.on('error', err => {
       res.writeHead(502);
@@ -122,6 +164,77 @@ const server = http.createServer((req, res) => {
   res.writeHead(404);
   res.end('Not Found');
 });
+
+// Handle HTTPS tunneling
+server.on('connect', (req, clientSocket, head) => {
+  // Instead of parsing the original URL, forward to localhost:8500
+  const targetPort = 8500;
+  const targetHost = 'localhost';
+
+  const serverSocket = net.connect(targetPort, targetHost, () => {
+    clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+    serverSocket.write(head);
+    serverSocket.pipe(clientSocket);
+    clientSocket.pipe(serverSocket);
+  });
+
+  serverSocket.on('error', (err) => {
+    console.error('Server socket error:', err);
+    clientSocket.end();
+  });
+
+  clientSocket.on('error', (err) => {
+    console.error('Client socket error:', err);
+    serverSocket.end();
+  });
+});
+
+/**
+ * Returns proxy configuration details based on the target URL protocol.
+ *
+ * @param {any} targetUrl - The URL to determine proxy settings for.
+ * @returns {{ agent: HttpProxyAgent | HttpsProxyAgent, client: typeof import('http') | typeof import('https') }}
+ */
+function getProxyDetails(targetUrl) {
+  const urlObj = new URL(targetUrl);
+  const protocol = urlObj.protocol;
+  const isHttps = protocol.includes('https');
+
+  const proxy = 'http://hoverfly:8500'; // for debugging: localhost:8500        
+  return isHttps
+    ? { agent: new HttpsProxyAgent(proxy), client: require('https') }
+    : { agent: new HttpProxyAgent(proxy), client: require('http') };
+}
+
+
+/**
+ * 
+ * @param {http.ServerResponse} res 
+ * @param {string} data 
+ * @param {number} chunkSize 
+ * @param {number} intervalMs 
+ * @returns void
+ */
+function streamResponseBack2Client(res, data, chunkSize = 4, intervalMs = 100) {
+  const chunks = data.match(new RegExp(`.{1,${chunkSize}}`, 'g')) || [];
+
+  res.writeHead(200, {
+    'Content-Type': 'text/plain',
+    'Transfer-Encoding': 'chunked',
+    'Cache-Control': 'no-cache'
+  });
+
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i < chunks.length) {
+      res.write(chunks[i]);
+      i++;
+    } else {
+      clearInterval(interval);
+      res.end();
+    }
+  }, intervalMs);
+}
 
 server.listen(3000, () => {
   console.log('Proxy running at http://localhost:3000');

@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Node.js proxy that streams Hoverfly responses and exposes admin passthrough",
   "main": "server.js",
+  "type": "commonjs",
+  "author": "Hrushikesh Vasista",
+  "license": "MIT",
+  "keywords": ["proxy", "hoverfly", "streaming", "nodejs"],
   "scripts": {
     "start": "node Myserver.js"
   },
@@ -12,6 +16,6 @@
     "https-proxy-agent": "^7.0.6"
   },
   "devDependencies": {
-    "@types/http-proxy": "^1.17.16"
+    "@types/http-proxy": "^1.17.17"
   }
 }
