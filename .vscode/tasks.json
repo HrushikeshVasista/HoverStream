@@ -1,0 +1,16 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "start-hoverfly",
+            "type": "shell",
+            "command": "docker run -d --name hoverfly -p 8500:8500 -p 8888:8888 -v ${workspaceFolder}/simulations:/hoverfly/simulations spectolabs/hoverfly:v1.11.1 -import /hoverfly/simulations/streamed.json -webserver",
+            "problemMatcher": []
+        },
+        {
+            "label": "stop-hoverfly",
+            "type": "shell",
+            "command": "docker stop hoverfly"
+        }
+    ]
+}
