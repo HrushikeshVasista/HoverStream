@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    // {
+    //   "name": "Launch Node in Docker",
+    //   "type": "docker",
+    //   "request": "launch",
+    //   "preLaunchTask": "docker-run: debug",
+    //   "platform": "node"
+    // },
+    {
+      "name": "Attach to Node in Docker",
+      "type": "docker",
+      "request": "launch",      
+      "platform": "node",
+      "address": "localhost",
+      "port": 9229,
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/",
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+      
+    },
+  
+    {
+      "type": "docker-run",
+      "label": "docker-run: debug",
+      "dependsOn": ["docker-build"],
+      "dockerRun": {
+        "command": "nest start --debug 0.0.0.0:9229"
+      },
+      "node": {
+        "enableDebugging": true
+      }
+    },
+  
+
+    {
+      "name": "Debug Node Server",
+      "type": "node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/Myserver.js",
+      "runtimeArgs": [
+        "--nolazy",
+        "--inspect-brk"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "preLaunchTask": "start-hoverfly",
+      "postDebugTask": "stop-hoverfly"
+    }
+  ]
+}

@@ -1,4 +1,3 @@
-version: '3'  # Compose file format version
 services:
 
   hoverfly:
@@ -14,11 +13,12 @@ services:
       - "-webserver"
 
   node-proxy:
-    image: node:latest
-    volumes:
-      - ".:/node-proxy"
-    command: ["node", "/node-proxy/Myserver.js"]
+    build: .
     ports:
       - "3000:3000"
     depends_on:
       - hoverfly
+    environment:
+      - HOVERFLY_URL=http://hoverfly:8500
+    env_file:
+      - .env

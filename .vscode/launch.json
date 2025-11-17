@@ -1,25 +1,6 @@
 {
   "version": "0.2.0",
   "configurations": [
-    // {
-    //   "name": "Launch Node in Docker",
-    //   "type": "docker",
-    //   "request": "launch",
-    //   "preLaunchTask": "docker-run: debug",
-    //   "platform": "node"
-    // },
-    // {
-    //   "type": "node",
-    //   "request": "attach",
-    //   "name": "Attach to Node in Docker",
-    //   "address": "localhost",
-    //   "port": 9229,
-    //   "localRoot": "${workspaceFolder}",
-    //   "remoteRoot": "/node-proxy",
-    //   "skipFiles": [
-    //     "<node_internals>/**"
-    //   ]
-    // },
     {
       "name": "Debug Node Server",
       "type": "node",
@@ -36,6 +17,16 @@
       "internalConsoleOptions": "neverOpen",
       "preLaunchTask": "start-hoverfly",
       "postDebugTask": "stop-hoverfly"
+    },
+    {
+      "name": "Attach to Node.js in Container",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "address": "localhost",
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app"
     }
+
   ]
 }

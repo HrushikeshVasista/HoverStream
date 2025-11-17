@@ -6,11 +6,17 @@
   "type": "commonjs",
   "author": "Hrushikesh Vasista",
   "license": "MIT",
-  "keywords": ["proxy", "hoverfly", "streaming", "nodejs"],
+  "keywords": [
+    "proxy",
+    "hoverfly",
+    "streaming",
+    "nodejs"
+  ],
   "scripts": {
     "start": "node Myserver.js"
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
     "http-proxy": "^1.18.1",
     "http-proxy-agent": "^7.0.2",
     "https-proxy-agent": "^7.0.6"

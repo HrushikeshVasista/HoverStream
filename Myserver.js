@@ -11,8 +11,8 @@ const http = require('http');
 const net = require('net');
 //const https = require('https');
 const { URL } = require('url');
+require('dotenv').config();
 
-// @ts-check
 //const httpProxy = require('http-proxy');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const { HttpProxyAgent } = require('http-proxy-agent');
