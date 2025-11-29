@@ -7,17 +7,13 @@
  * @version     1.0.0
  */
 const http = require('http');
-
-const net = require('net');
-//const https = require('https');
 const { URL } = require('url');
 require('dotenv').config();
 
-//const httpProxy = require('http-proxy');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const { HttpProxyAgent } = require('http-proxy-agent');
 
-// Create a proxy controller to a proxy (i.e. Hoverfly)
+// Create a proxy controller to Hoverfly
 const server = http.createServer();
 
 server.on('request', (req, res) => {
@@ -31,10 +27,6 @@ server.on('request', (req, res) => {
     req.on('data', chunk => (body += chunk));
     req.on('end', () => {
 
-      const protocol = parsedUrl.protocol;
-      const isHttps = protocol.includes('https');
-
-      //const parsedUrl = new URL(targetUrl);
       const { agent, client } = getProxyDetails(hoverflyBaseUrl);
 
       const options = {
@@ -42,13 +34,14 @@ server.on('request', (req, res) => {
         hostname: parsedUrl.hostname,
         port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
         path: parsedUrl.pathname + parsedUrl.search,
-        method: req.method, // Use the original method (GET, POST, PUT, etc.)
+        method: req.method,
         headers: req.headers,
-        agent: new HttpProxyAgent(hoverflyBaseUrl)
+        agent: agent
       };
 
-      // Send the request to Hoverfly, get the response and stream it back the client
-      const hoverflyReq = require('http').request(options);
+      // Send the request to Hoverfly, get the response and 
+      // stream it back the client
+      const hoverflyReq = client.request(options);
       req.pipe(hoverflyReq);
       hoverflyReq.on('response', (proxyRes) => {
         let simulatedResponse = '';
@@ -98,20 +91,22 @@ function getProxyDetails(targetUrl) {
   const protocol = urlObj.protocol;
   const isHttps = protocol.includes('https');
 
-  const proxy = 'http://hoverfly:8500'; // for debugging: localhost:8500        
+  let client = require('https');
   return isHttps
-    ? { agent: new HttpsProxyAgent(proxy), client: require('https') }
-    : { agent: new HttpProxyAgent(proxy), client: require('http') };
+    ? { agent: new HttpsProxyAgent(targetUrl), client: client }
+    : { agent: new HttpProxyAgent(targetUrl), client: client };
 }
 
 
 /**
- * 
- * @param {http.ServerResponse} res 
- * @param {string} data 
- * @param {number} chunkSize 
- * @param {number} intervalMs 
+ * Streams a string response to the client in timed chunks.
+ *
+ * @param {http.ServerResponse} res - The HTTP response object to write to.
+ * @param {string} data - The full string content to stream.
+ * @param {number} chunkSize - Number of characters per chunk (default: 4).
+ * @param {number} intervalMs - Delay between chunks in milliseconds (default: 100ms).
  * @returns void
+ * @description Splits the input string into fixed-size chunks and writes each chunk to the response at regular intervals, simulating a streaming effect.
  */
 function streamResponseBack2Client(res, data, chunkSize = 4, intervalMs = 100) {
   const chunks = data.match(new RegExp(`.{1,${chunkSize}}`, 'g')) || [];
