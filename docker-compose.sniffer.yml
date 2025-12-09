@@ -1,0 +1,4 @@
+services:
+  hoverfly:
+    command:
+      - "-capture"

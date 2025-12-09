@@ -11,14 +11,15 @@ services:
       - "-import"
       - "/hoverfly/simulations/${IMPORT_FILE:-streamed.json}"
       - "-webserver"
+    environment:
+      - HOVERFLY_BASE_URL=http://hoverfly:8500
 
   node-proxy:
     build: .
     ports:
       - "3000:3000"
+      - "3001:3001"
     depends_on:
       - hoverfly
-    environment:
-      - HOVERFLY_URL=http://hoverfly:8500
     env_file:
       - .env

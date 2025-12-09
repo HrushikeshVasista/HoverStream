@@ -13,7 +13,14 @@
     "nodejs"
   ],
   "scripts": {
-    "start": "node Myserver.js"
+    "start:node-only": "node Myserver.js",
+    "start:hoverstream:docker": "docker-compose up -d",
+    "start:sniffer:docker": "docker-compose -f docker-compose.yml -f docker-compose.sniffer.yml up -d",
+    "stop:docker": "docker-compose down",
+
+    "debug:node-only": "node --inspect=0.0.0.0:9229 Myserver.js",
+    "debug:hoverstream:docker": "docker-compose -f docker-compose.yml -f docker-compose.debug.yml up -d",    
+    "debug:sniffer:docker": "docker-compose -f docker-compose.yml -f docker-compose.sniffer.yml -f docker-compose.debug.yml up -d"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
@@ -22,6 +29,7 @@
     "https-proxy-agent": "^7.0.6"
   },
   "devDependencies": {
-    "@types/http-proxy": "^1.17.17"
+    "@types/http-proxy": "^1.17.17",
+    "@types/http-proxy-agent": "^4.0.0"
   }
 }
